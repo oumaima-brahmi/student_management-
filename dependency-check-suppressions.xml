@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!--
+    Exemples de suppressions pour faux positifs
+    À adapter selon vos besoins
+    -->
+    <suppress base="true">
+        <notes><![CDATA[
+        Suppression générale pour les vulnérabilités nécessitant une analyse manuelle
+        ]]></notes>
+        <gav regex="true">.*</gav>
+        <cve>CVE-2022-45685</cve>
+    </suppress>
+    
+    <!-- Exemple de suppression par package -->
+    <!--
+    <suppress>
+        <notes><![CDATA[False positive dans Spring Framework]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-core@.*$</packageUrl>
+        <vulnerabilityName>CVE-2023-12345</vulnerabilityName>
+    </suppress>
+    -->
+</suppressions>
