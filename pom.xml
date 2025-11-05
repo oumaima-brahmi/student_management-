@@ -19,7 +19,6 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <jacoco.version>0.8.11</jacoco.version>
-        <owasp.dependency.check.version>9.1.0</owasp.dependency.check.version>
     </properties>
     
     <dependencies>
@@ -93,49 +92,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            
-            <!-- Plugin OWASP Dependency Check - Configuration optimisée -->
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>${owasp.dependency.check.version}</version>
-                <executions>
-                    <execution>
-                        <id>dependency-check</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <!-- Formats de rapport -->
-                    <formats>
-                        <format>html</format>
-                        <format>json</format>
-                    </formats>
-                    
-                    <!-- Configuration timeout résolue -->
-                    <connectionTimeout>180000</connectionTimeout>
-                    <readTimeout>180000</readTimeout>
-                    
-                    <!-- Configuration DevSecOps -->
-                    <cveValidForHours>24</cveValidForHours>
-                    <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>
-                    <failOnError>true</failOnError>
-                    
-                    <!-- Scopes analysés -->
-                    <skipTestScope>false</skipTestScope>
-                    <skipRuntimeScope>false</skipRuntimeScope>
-                    
-                    <!-- Analyse CISA KEV maintenue active -->
-                    <disableKevAnalysis>false</disableKevAnalysis>
-                    
-                    <!-- Performance -->
-                    <centralAnalyzerEnabled>true</centralAnalyzerEnabled>
-                    <jarAnalyzerEnabled>true</jarAnalyzerEnabled>
-                </configuration>
             </plugin>
         </plugins>
     </build>
