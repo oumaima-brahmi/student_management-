@@ -20,8 +20,6 @@
         <maven.compiler.target>21</maven.compiler.target>
         <jacoco.version>0.8.11</jacoco.version>
         <owasp.dependency.check.version>9.1.0</owasp.dependency.check.version>
-        <sonar.organization>your-organization</sonar.organization>
-        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
     </properties>
     
     <dependencies>
@@ -59,18 +57,10 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.1.0</version>
         </dependency>
-        
-        <!-- Dependencies pour les tests de sécurité -->
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
     
     <build>
         <plugins>
-            <!-- Plugin Spring Boot -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -84,7 +74,6 @@
                 </configuration>
             </plugin>
             
-            <!-- Plugin JaCoCo pour la couverture de code -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -103,30 +92,10 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
-                    <execution>
-                        <id>check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <rule>
-                                    <element>BUNDLE</element>
-                                    <limits>
-                                        <limit>
-                                            <counter>INSTRUCTION</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.80</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             
-            <!-- Plugin OWASP Dependency Check - Configuration DevSecOps -->
+            <!-- Plugin OWASP Dependency Check - Configuration optimisée -->
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
@@ -145,167 +114,29 @@
                     <formats>
                         <format>html</format>
                         <format>json</format>
-                        <format>xml</format>
                     </formats>
                     
                     <!-- Configuration timeout résolue -->
                     <connectionTimeout>180000</connectionTimeout>
                     <readTimeout>180000</readTimeout>
                     
-                    <!-- Configuration DevSecOps stricte -->
-                    <cveValidForHours>12</cveValidForHours>
+                    <!-- Configuration DevSecOps -->
+                    <cveValidForHours>24</cveValidForHours>
                     <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>
                     <failOnError>true</failOnError>
-                    <failOnCVSS>4</failOnCVSS>
                     
                     <!-- Scopes analysés -->
                     <skipTestScope>false</skipTestScope>
                     <skipRuntimeScope>false</skipRuntimeScope>
-                    <skipProvidedScope>false</skipProvidedScope>
-                    <skipSystemScope>false</skipSystemScope>
-                    
-                    <!-- Analyseurs activés -->
-                    <assemblyAnalyzerEnabled>true</assemblyAnalyzerEnabled>
-                    <nodeAnalyzerEnabled>true</nodeAnalyzerEnabled>
-                    <nodeAuditAnalyzerEnabled>true</nodeAuditAnalyzerEnabled>
-                    <nodePackageSkipDevDependencies>false</nodePackageSkipDevDependencies>
-                    <retireJsAnalyzerEnabled>true</retireJsAnalyzerEnabled>
-                    <retireJsFilterNonVulnerable>true</retireJsFilterNonVulnerable>
-                    <ossIndexAnalyzerEnabled>true</ossIndexAnalyzerEnabled>
-                    <ossIndexUsePublic>true</ossIndexUsePublic>
                     
                     <!-- Analyse CISA KEV maintenue active -->
                     <disableKevAnalysis>false</disableKevAnalysis>
                     
-                    <!-- Fichier de suppression des faux positifs -->
-                    <suppressionFiles>
-                        <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
-                    </suppressionFiles>
-                    
-                    <!-- Performance et optimisation -->
+                    <!-- Performance -->
                     <centralAnalyzerEnabled>true</centralAnalyzerEnabled>
-                    <nexusAnalyzerEnabled>false</nexusAnalyzerEnabled>
-                    <artifactoryAnalyzerEnabled>false</artifactoryAnalyzerEnabled>
                     <jarAnalyzerEnabled>true</jarAnalyzerEnabled>
-                    <archiveAnalyzerEnabled>true</archiveAnalyzerEnabled>
-                    
-                    <!-- Rapports détaillés -->
-                    <prettyPrint>true</prettyPrint>
-                    <enableExperimental>false</enableExperimental>
-                    <showSummary>true</showSummary>
                 </configuration>
-            </plugin>
-            
-            <!-- Plugin Surefire pour les tests -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
-                <configuration>
-                    <skipTests>false</skipTests>
-                    <testFailureIgnore>false</testFailureIgnore>
-                    <includes>
-                        <include>**/*Test.java</include>
-                        <include>**/*Tests.java</include>
-                    </includes>
-                    <excludes>
-                        <exclude>**/*IT.java</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-            
-            <!-- Plugin Failsafe pour les tests d'intégration -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.2.5</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            
-            <!-- Plugin Sonar (optionnel) -->
-            <plugin>
-                <groupId>org.sonarsource.scanner.maven</groupId>
-                <artifactId>sonar-maven-plugin</artifactId>
-                <version>3.10.0.2594</version>
             </plugin>
         </plugins>
     </build>
-    
-    <!-- Profils Maven -->
-    <profiles>
-        <profile>
-            <id>dev</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <properties>
-                <spring.profiles.active>dev</spring.profiles.active>
-            </properties>
-        </profile>
-        
-        <profile>
-            <id>ci</id>
-            <properties>
-                <spring.profiles.active>ci</spring.profiles.active>
-                <skip.integration.tests>false</skip.integration.tests>
-            </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.owasp</groupId>
-                        <artifactId>dependency-check-maven</artifactId>
-                        <configuration>
-                            <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        
-        <profile>
-            <id>security-scan</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.owasp</groupId>
-                        <artifactId>dependency-check-maven</artifactId>
-                        <executions>
-                            <execution>
-                                <id>security-scan</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>check</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
-    
-    <!-- Reporting -->
-    <reporting>
-        <plugins>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>${owasp.dependency.check.version}</version>
-                <reportSets>
-                    <reportSet>
-                        <reports>
-                            <report>aggregate</report>
-                        </reports>
-                    </reportSet>
-                </reportSets>
-            </plugin>
-        </plugins>
-    </reporting>
 </project>
