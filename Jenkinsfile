@@ -39,15 +39,7 @@ pipeline {
     stage('🔒 Security Scan - SCA') {
       steps { 
         echo "Scanning dependencies for vulnerabilities..."
-        script {
-          // Scan avec timeout augmenté pour éviter les échecs
-          sh """
-            mvn org.owasp:dependency-check-maven:check \
-            -DconnectionTimeout=120000 \
-            -DreadTimeout=120000 \
-            -DfailBuildOnAnyVulnerability=false
-          """
-        }
+        sh "mvn dependency-check:check"
       }
     }
 
@@ -70,7 +62,7 @@ pipeline {
       steps { 
         echo "Waiting for quality gate result..."
         script {
-          timeout(time: 3, unit: 'MINUTES') {
+          timeout(time: 2, unit: 'MINUTES') {
             def qg = waitForQualityGate()
             if (qg.status != 'OK') {
               error "❌ Pipeline stopped: Quality gate failed - ${qg.status}"
@@ -103,11 +95,9 @@ pipeline {
     stage('🚀 Smoke Test') {
       steps { 
         echo "Running smoke test..."
-        script {
-          sh "docker run -d --name smokerun -p 8080:8080 54788214/student-management:latest"
-          sh "sleep 30; curl -f http://localhost:8080/actuator/health || curl -f http://localhost:8080 || exit 1"
-          sh "docker rm --force smokerun"
-        }
+        sh "docker run -d --name smokerun -p 8080:8080 54788214/student-management:latest"
+        sh "sleep 30; curl -f http://localhost:8080 || exit 1"
+        sh "docker rm --force smokerun"
       }
     }
   }
@@ -118,7 +108,7 @@ pipeline {
       sh 'docker rm --force smokerun 2>/dev/null || true'
     }
     success {
-      echo '🎉 FÉLICITATIONS ! Pipeline DevSecOps RÉUSSI avec GitHub ! 🎉'
+      echo '🎉 FÉLICITATIONS ! Pipeline DevSecOps RÉUSSI ! 🎉'
       echo '✅ Tous les tests de sécurité sont passés !'
       echo '✅ Application déployée avec succès !'
     }
