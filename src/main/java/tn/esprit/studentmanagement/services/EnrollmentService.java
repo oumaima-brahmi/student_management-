@@ -1,6 +1,4 @@
 package tn.esprit.studentmanagement.services;
-
-import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tn.esprit.studentmanagement.repositories.EnrollmentRepository;
@@ -9,8 +7,12 @@ import java.util.List;
 
 @Service
 public class EnrollmentService implements IEnrollment {
+    private final EnrollmentRepository enrollmentRepository;
+
     @Autowired
-    EnrollmentRepository enrollmentRepository;
+    public EnrollmentService(EnrollmentRepository enrollmentRepository) {
+        this.enrollmentRepository = enrollmentRepository;
+    }
 
     @Override
     public List<Enrollment> getAllEnrollments() {
@@ -19,7 +21,8 @@ public class EnrollmentService implements IEnrollment {
 
     @Override
     public Enrollment getEnrollmentById(Long idEnrollment) {
-        return enrollmentRepository.findById(idEnrollment).get();
+        return enrollmentRepository.findById(idEnrollment)
+            .orElseThrow(() -> new RuntimeException("Enrollment not found"));
     }
 
     @Override
