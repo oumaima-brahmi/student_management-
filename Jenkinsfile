@@ -118,12 +118,18 @@ pipeline {
         }
         
         stage('🔍 Scan Docker Image') {
-            steps { 
-                echo "Scanning Docker image for vulnerabilities..."
-                sh "trivy image --scanners vuln 54788214/student-management:latest > trivy-results.txt"
-                archiveArtifacts artifacts: 'trivy-results.txt'
-            }
-        }
+    steps { 
+        echo "Scanning Docker image with optimized Trivy..."
+        sh """
+            # Nettoyer le cache avant
+            trivy --clear-cache || true
+            
+            # Scanner seulement les vulnérabilités critiques (moins de données)
+            trivy image --scanners vuln --severity CRITICAL,HIGH 54788214/student-management:latest > trivy-results.txt
+        """
+        archiveArtifacts artifacts: 'trivy-results.txt'
+    }
+}
         
         stage('🚀 Smoke Test') {
             steps { 
