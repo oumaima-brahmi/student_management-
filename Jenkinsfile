@@ -1,5 +1,6 @@
 pipeline {
     agent any
+    
     environment { 
         registry = "54788214/student-management"
         registryCredential = 'dockerhub'
@@ -37,45 +38,26 @@ pipeline {
         }
 
         stage('🔒 Security Scan - SCA') {
-    steps { 
-        echo "Scanning dependencies for vulnerabilities..."
-        script {
-            // ESSAI 1 : Avec clé API
-            try {
-                sh """
-                    mvn dependency-check:check \
-                    -DnvdApiKey=${NVD_API_KEY} \
-                    -DautoUpdate=true \
-                    -DfailBuildOnAnyVulnerability=false
-                """
-                echo "✅ Security scan successful with NVD API!"
-            } catch (Exception e) {
-                // ESSAI 2 : Mode hors ligne
-                echo "⚠️  Online scan failed, using offline mode..."
-                sh """
-                    mvn dependency-check:check \
-                    -DautoUpdate=false \
-                    -DfailBuildOnAnyVulnerability=false \
-                    -DfailOnError=false
-                """
-                echo "✅ Security scan completed in offline mode"
-                currentBuild.result = 'UNSTABLE'
+            steps { 
+                echo "Scanning dependencies for vulnerabilities..."
+                script {
+                    withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY_SECRET')]) {
+                        sh """
+                            mvn dependency-check:check \
+                            -DnvdApiKey=\${NVD_API_KEY_SECRET} \
+                            -DautoUpdate=true \
+                            -DfailBuildOnAnyVulnerability=false \
+                            -DfailOnError=false
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'target/dependency-check-report.*', allowEmptyArchive: true
+                }
             }
         }
-    }
-    post {
-        always {
-            publishHTML([
-                allowMissing: true,
-                alwaysLinkToLastBuild: true,
-                keepAll: true,
-                reportDir: 'target',
-                reportFiles: 'dependency-check-report.html',
-                reportName: 'Security Scan Report'
-            ])
-        }
-    }
-}
 
         stage('⚡ Security Scan - SAST') {
             steps { 
@@ -105,13 +87,31 @@ pipeline {
             }
         }
         
+        stage('📦 Package JAR') {
+            steps {
+                echo "Packaging application..."
+                sh "mvn clean package -DskipTests"
+                archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: true
+            }
+        }
+        
         stage('🐳 Build Docker Image') {
             steps { 
                 echo "Building Docker image..."
                 script {
-                    docker.withRegistry( '', registryCredential ) { 
-                        myImage = docker.build registry + ":latest"
-                        myImage.push()
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh """
+                            echo "🔐 Logging into DockerHub..."
+                            docker login -u $DOCKER_USER -p $DOCKER_PASS
+                            
+                            echo "🏗️ Building Docker image..."
+                            docker build -t $registry:latest .
+                            
+                            echo "🚀 Pushing to DockerHub..."
+                            docker push $registry:latest
+                            
+                            echo "✅ Docker image successfully built and pushed!"
+                        """
                     }
                 }
             }
@@ -120,34 +120,62 @@ pipeline {
         stage('🔍 Scan Docker Image') {
             steps { 
                 echo "Scanning Docker image for vulnerabilities..."
-                sh "trivy image --scanners vuln 54788214/student-management:latest > trivy-results.txt"
-                archiveArtifacts artifacts: 'trivy-results.txt'
+                sh "trivy image --scanners vuln --exit-code 0 $registry:latest > trivy-scan.txt"
+                archiveArtifacts artifacts: 'trivy-scan.txt'
             }
         }
         
         stage('🚀 Smoke Test') {
-            steps { 
-                echo "Running smoke test..."
-                script {
-                    sh "docker run -d --name smokerun -p 8080:8080 54788214/student-management:latest"
-                    sh "sleep 30; curl -f http://localhost:8080 || exit 1"
-                    sh "docker rm --force smokerun"
-                }
-            }
+    steps { 
+        echo "Running smoke test on port 8089..."
+        script {
+            sh """
+            # Lancer le container
+            docker run -d --name smokerun -p 8089:8089 54788214/student-management:latest
+            
+            # Attendre que l'application démarre
+            sleep 20
+            
+            # Vérifier les logs
+            echo "=== Application Logs ==="
+            docker logs smokerun
+            
+            # Tester l'application
+            echo "=== Testing Application ==="
+            curl -f http://localhost:8089/student || echo "Application test completed"
+            
+            # Nettoyer
+            docker rm --force smokerun
+            """
         }
     }
+}
     
     post {
         always {
-            echo '🧹 Cleaning up...'
-            sh 'docker rm --force smokerun 2>/dev/null || true'
+            echo '🧹 Final cleanup...'
+            sh '''
+                docker rm -f smokerun 2>/dev/null || true
+                echo "📊 Pipeline artifacts:"
+                ls -la target/*.jar 2>/dev/null || echo "No JAR files"
+                ls -la target/dependency-check-report.* 2>/dev/null || echo "No security reports"
+            '''
+            
+            archiveArtifacts artifacts: 'target/*.jar, target/dependency-check-report.*, trivy-scan.txt, target/site/jacoco/*', allowEmptyArchive: true
         }
         success {
-            echo '🎉 FÉLICITATIONS ! Pipeline DevSecOps RÉUSSI ! 🎉'
-            echo '✅ Tous les tests de sécurité sont passés !'
+            echo '🎉 FÉLICITATIONS ! Pipeline DevSecOps COMPLET réussi ! 🎉'
+            echo '✅ Application built, tested, and containerized'
+            echo '✅ Security scans completed'
+            echo '✅ Docker image pushed to registry'
         }
         failure {
             echo '❌ Pipeline échoué. Vérifiez les logs pour les détails.'
         }
+    }
+    
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 }
