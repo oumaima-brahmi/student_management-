@@ -26,14 +26,15 @@ pipeline {
             steps {
                 echo "Running tests..."
                 sh "mvn test"
-                post {
-                    always {
-                        jacoco(
-                            execPattern: 'target/jacoco.exec',
-                            classPattern: 'target/classes',
-                            sourcePattern: 'src/main/java'
-                        )
-                    }
+            }
+            // ✅ CORRECTION : post au niveau du stage, pas dans steps
+            post {
+                always {
+                    jacoco(
+                        execPattern: 'target/jacoco.exec',
+                        classPattern: 'target/classes',
+                        sourcePattern: 'src/main/java'
+                    )
                 }
             }
         }
@@ -125,6 +126,7 @@ EOF
                     """
                 }
             }
+            // ✅ CORRECTION : post au niveau du stage
             post {
                 always {
                     // 📊 TOUJOURS publier le rapport HTML
@@ -261,24 +263,6 @@ EOF
             echo '🎉 FÉLICITATIONS ! Pipeline DevSecOps RÉUSSI ! 🎉'
             echo '✅ Tous les tests de sécurité sont passés !'
             echo '✅ Application déployée avec succès !'
-            
-            // 📧 Notification optionnelle
-            emailext (
-                subject: "SUCCÈS Pipeline DevSecOps - Build #${BUILD_NUMBER}",
-                body: """
-                Le pipeline DevSecOps a réussi avec succès !
-                
-                Détails:
-                - Application: Student Management
-                - Build: #${BUILD_NUMBER}
-                - Image Docker: ${registry}:latest
-                - Rapport Sécurité: ${BUILD_URL}Security_20Scan_20Report/
-                - Rapport Couverture: ${BUILD_URL}Code_20Coverage_20Report/
-                
-                Félicitations ! 🎉
-                """,
-                to: "votre-email@example.com"
-            )
         }
         failure {
             echo '❌ Pipeline échoué. Vérifiez les logs pour les détails.'
