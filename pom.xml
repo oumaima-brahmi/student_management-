@@ -148,22 +148,19 @@
     <groupId>org.owasp</groupId>
     <artifactId>dependency-check-maven</artifactId>
     <version>8.4.2</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>check</goal>  <!-- ✅ Lance le scan -->
+            </goals>
+        </execution>
+    </executions>
     <configuration>
         <formats>
-            <format>html</format>
-            <format>json</format>
+            <format>html</format>  <!-- ✅ Génère rapport HTML -->
+            <format>json</format>  <!-- ✅ Génère rapport JSON -->
         </formats>
-        
-        <!-- CONFIGURATION QUI MARCHE TOUJOURS -->
-        <autoUpdate>false</autoUpdate>
-        <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
-        
-        <failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
-        <failOnError>false</failOnError>
-        
-        <suppressionFiles>
-            <suppressionFile>${project.basedir}/security/dependency-check-suppressions.xml</suppressionFile>
-        </suppressionFiles>
+        <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>
     </configuration>
 </plugin>
             
