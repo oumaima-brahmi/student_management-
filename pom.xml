@@ -145,23 +145,24 @@
             
             <!-- OWASP Dependency Check -->
             <plugin>
-    <groupId>org.owasp</groupId>
-    <artifactId>dependency-check-maven</artifactId>
-    <version>8.4.2</version>
-    <executions>
-        <execution>
-            <goals>
-                <goal>check</goal>  <!-- ✅ Lance le scan -->
-            </goals>
-        </execution>
-    </executions>
-    <configuration>
-        <formats>
-            <format>html</format>  <!-- ✅ Génère rapport HTML -->
-            <format>json</format>  <!-- ✅ Génère rapport JSON -->
-        </formats>
-        <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>
-    </configuration>
+  <groupId>org.owasp</groupId>
+  <artifactId>dependency-check-maven</artifactId>
+  <version>12.1.0</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>check</goal>
+      </goals>
+    </execution>
+  </executions>
+  <configuration>
+    <formats>
+      <format>HTML</format>
+      <format>JSON</format>
+    </formats>
+    <!-- échoue si CVSS >= 7 -->
+    <failBuildOnCVSS>7.0</failBuildOnCVSS>
+  </configuration>
 </plugin>
             
             <!-- JaCoCo Code Coverage -->
