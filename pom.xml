@@ -100,10 +100,17 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         
+        <!-- Santé / readiness -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-         </dependency>
+           <groupId>org.springframework.boot</groupId>
+           <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+<!-- Bean Validation (évite l'avertissement "NoProviderFound") -->
+       <dependency>
+           <groupId>org.springframework.boot</groupId>
+           <artifactId>spring-boot-starter-validation</artifactId>
+       </dependency>
 
         <!-- Security for testing -->
         <dependency>
