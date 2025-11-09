@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    environment { 
+    environment {
         registry = "54788214/student-management"
         registryCredential = 'dockerhub'
         NVD_API_KEY = credentials('nvd-api-key')
@@ -9,12 +9,12 @@ pipeline {
     stages {
         stage('📥 Checkout GitHub') {
             steps {
-                git branch: 'main', 
-                credentialsId: 'tokengithub', 
+                git branch: 'main',
+                credentialsId: 'tokengithub',
                 url: 'https://github.com/oumaima-brahmi/student_management-.git'
             }
         }
-        
+
         stage('🔨 Build Application') {
             steps {
                 echo "Building Student Management with Java 21..."
@@ -37,7 +37,7 @@ pipeline {
         }
 
         stage('🔒 Security Scan - SCA') {
-            steps { 
+            steps {
                 echo "Scanning dependencies for vulnerabilities..."
                 script {
                     // ESSAI 1 : Avec clé API
@@ -78,7 +78,7 @@ pipeline {
         }
 
         stage('⚡ Security Scan - SAST') {
-            steps { 
+            steps {
                 echo "Static Application Security Testing with SonarQube..."
                 withSonarQubeEnv('sonarqube') {
                     sh '''
@@ -92,7 +92,7 @@ pipeline {
         }
 
         stage('✅ Quality Gate') {
-            steps { 
+            steps {
                 echo "Waiting for quality gate result..."
                 script {
                     timeout(time: 3, unit: 'MINUTES') {
@@ -104,35 +104,35 @@ pipeline {
                 }
             }
         }
-        
+
         stage('🐳 Build Docker Image') {
-            steps { 
+            steps {
                 echo "Building Docker image..."
                 script {
-                    docker.withRegistry( '', registryCredential ) { 
+                    docker.withRegistry( '', registryCredential ) {
                         myImage = docker.build registry + ":latest"
                         myImage.push()
                     }
                 }
             }
         }
-        
+
         stage('🔍 Scan Docker Image') {
-    steps { 
+    steps {
         echo "Scanning Docker image with optimized Trivy..."
         sh """
             # Nettoyer le cache avant
             trivy --clear-cache || true
-            
+
             # Scanner seulement les vulnérabilités critiques (moins de données)
             trivy image --scanners vuln --severity CRITICAL,HIGH 54788214/student-management:latest > trivy-results.txt
         """
         archiveArtifacts artifacts: 'trivy-results.txt'
     }
 }
-        
+
         stage('🚀 Smoke Test') {
-            steps { 
+            steps {
                 echo "Running smoke test..."
                 script {
                     sh "docker run -d --name smokerun -p 8089:8089 54788214/student-management:latest"
@@ -142,7 +142,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             echo '🧹 Cleaning up...'

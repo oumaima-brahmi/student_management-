@@ -1,0 +1,46 @@
+﻿repos:
+  # Hygiène de base
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+
+  # Détection de secrets
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        args: ["--no-banner", "--redact"]
+        stages: [commit]
+
+  # Message de commit (Conventional Commits)
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: ["--strict"]  # bloque si le message n'est pas conforme
+
+  # Hooks locaux (commandes Maven)
+  - repo: local
+    hooks:
+      # Tests unitaires rapides à chaque push
+      - id: mvn-unit-tests
+        name: Run Maven unit tests before push
+        entry: mvn -B -ntp -DskipITs test
+        language: system
+        pass_filenames: false
+        stages: [push]
+
+      # (Optionnel) Qualité code complète au push : décommente si tu veux bloquer aussi ici
+      # - id: mvn-verify-quality
+      #   name: Maven verify (Spotless/Checkstyle/SpotBugs)
+      #   entry: mvn -B -ntp verify
+      #   language: system
+      #   pass_filenames: false
+      #   stages: [push]
