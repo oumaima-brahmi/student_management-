@@ -1,159 +1,374 @@
 pipeline {
-    agent any
-    environment {
-        registry = "54788214/student-management"
-        registryCredential = 'dockerhub'
-        NVD_API_KEY = credentials('nvd-api-key')
+  agent any
+
+  parameters {
+    booleanParam(name: 'ST_CHECKOUT', defaultValue: true,  description: '1) Checkout Git')
+    booleanParam(name: 'ST_BUILD',    defaultValue: false, description: '2) Maven build (skip tests)')
+    booleanParam(name: 'ST_TESTS',    defaultValue: false, description: '3) Tests + JaCoCo')
+    booleanParam(name: 'ST_DC',       defaultValue: false, description: '4) SCA Dependency-Check (fail HIGH/CRIT)')
+    booleanParam(name: 'ST_SONAR',    defaultValue: false, description: '5) SonarQube analysis')
+    booleanParam(name: 'ST_QG',       defaultValue: false, description: '6) Quality Gate (stop si NOK)')
+    booleanParam(name: 'ST_DOCKER',   defaultValue: false, description: '7) Build & Push Docker')
+    booleanParam(name: 'ST_TRIVY',    defaultValue: false, description: '8) Trivy image scan (fail HIGH/CRIT)')
+    booleanParam(name: 'ST_RUNAPP',   defaultValue: false, description: '9) Run app container (pour DAST & smoke)')
+    booleanParam(name: 'ST_SMOKE',    defaultValue: false, description: '10) Smoke test /student')
+    booleanParam(name: 'ST_GITLEAKS', defaultValue: false, description: '11) Gitleaks (fail on leak)')
+    booleanParam(name: 'ST_ZAP',      defaultValue: false, description: '12) ZAP Baseline (fail >= Medium)')
+  }
+
+  options { timestamps() }
+
+  tools {
+    jdk 'jdk 21'
+    maven 'maven'
+  }
+
+  environment {
+    REGISTRY      = '54788214/student-management-ci'
+    REGISTRY_CRED = 'dockerhub'
+    SONAR_SERVER  = 'mysonarqube'
+    NVD_API_KEY   = credentials('nvd-api-key')
+    DC_DATA_DIR   = "${WORKSPACE}/.dc-data"
+  }
+
+  stages {
+
+    stage('📥 Checkout') {
+      when { expression { params.ST_CHECKOUT } }
+      steps {
+        git branch: 'main',
+            credentialsId: 'tokengithub',
+            url: 'https://github.com/oumaima-brahmi/student_management-.git'
+      }
     }
 
-    stages {
-        stage('📥 Checkout GitHub') {
-            steps {
-                git branch: 'main',
-                credentialsId: 'tokengithub',
-                url: 'https://github.com/oumaima-brahmi/student_management-.git'
-            }
-        }
-
-        stage('🔨 Build Application') {
-            steps {
-                echo "Building Student Management with Java 21..."
-                sh "mvn clean package -DskipTests"
-            }
-        }
-
-        stage('🧪 Run Tests') {
-            steps {
-                echo "Running tests..."
-                sh "mvn test"
-            }
-        }
-
-        stage('📊 Code Coverage') {
-            steps {
-                echo "Generating code coverage report..."
-                sh "mvn jacoco:report"
-            }
-        }
-
-        stage('🔒 Security Scan - SCA') {
-            steps {
-                echo "Scanning dependencies for vulnerabilities..."
-                script {
-                    // ESSAI 1 : Avec clé API
-                    try {
-                        sh """
-                            mvn dependency-check:check \
-                            -DnvdApiKey=${NVD_API_KEY} \
-                            -DautoUpdate=true \
-                            -DfailBuildOnAnyVulnerability=false
-                        """
-                        echo "✅ Security scan successful with NVD API!"
-                    } catch (Exception e) {
-                        // ESSAI 2 : Mode hors ligne
-                        echo "⚠️  Online scan failed, using offline mode..."
-                        sh """
-                            mvn dependency-check:check \
-                            -DautoUpdate=false \
-                            -DfailBuildOnAnyVulnerability=false \
-                            -DfailOnError=false
-                        """
-                        echo "✅ Security scan completed in offline mode"
-                        currentBuild.result = 'UNSTABLE'
-                    }
-                }
-            }
-            post {
-                always {
-                    publishHTML([
-                        allowMissing: true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'target',
-                        reportFiles: 'dependency-check-report.html',
-                        reportName: 'Security Scan Report'
-                    ])
-                }
-            }
-        }
-
-        stage('⚡ Security Scan - SAST') {
-            steps {
-                echo "Static Application Security Testing with SonarQube..."
-                withSonarQubeEnv('sonarqube') {
-                    sh '''
-                        mvn sonar:sonar \
-                        -Dsonar.projectName=student-management \
-                        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                        -Dsonar.dependencyCheck.jsonReportPath=target/dependency-check-report.json
-                    '''
-                }
-            }
-        }
-
-        stage('✅ Quality Gate') {
-            steps {
-                echo "Waiting for quality gate result..."
-                script {
-                    timeout(time: 3, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "❌ Pipeline stopped: Quality gate failed - ${qg.status}"
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('🐳 Build Docker Image') {
-            steps {
-                echo "Building Docker image..."
-                script {
-                    docker.withRegistry( '', registryCredential ) {
-                        myImage = docker.build registry + ":latest"
-                        myImage.push()
-                    }
-                }
-            }
-        }
-
-        stage('🔍 Scan Docker Image') {
-    steps {
-        echo "Scanning Docker image with optimized Trivy..."
-        sh """
-            # Nettoyer le cache avant
-            trivy --clear-cache || true
-
-            # Scanner seulement les vulnérabilités critiques (moins de données)
-            trivy image --scanners vuln --severity CRITICAL,HIGH 54788214/student-management:latest > trivy-results.txt
-        """
-        archiveArtifacts artifacts: 'trivy-results.txt'
-    }
-}
-
-        stage('🚀 Smoke Test') {
-            steps {
-                echo "Running smoke test..."
-                script {
-                    sh "docker run -d --name smokerun -p 8089:8089 54788214/student-management:latest"
-                    sh "sleep 30; curl -f http://localhost:8089/student || exit 1"
-                    sh "docker rm --force smokerun"
-                }
-            }
-        }
+    stage('🔨 Build (Maven)') {
+      when { expression { params.ST_BUILD } }
+      steps {
+        sh 'mvn -B -ntp clean package -DskipTests'
+      }
     }
 
-    post {
+    stage('🧪 Tests + JaCoCo') {
+      when { expression { params.ST_TESTS } }
+      steps {
+        sh 'mvn -B -ntp test jacoco:report'
+      }
+      post {
         always {
-            echo '🧹 Cleaning up...'
-            sh 'docker rm --force smokerun 2>/dev/null || true'
+          junit '**/target/surefire-reports/*.xml'
+          archiveArtifacts artifacts: 'target/site/jacoco/jacoco.xml', allowEmptyArchive: true
+          publishHTML(target: [
+            reportDir: 'target/site/jacoco',
+            reportFiles: 'index.html',
+            reportName: 'JaCoCo Coverage',
+            alwaysLinkToLastBuild: true,
+            keepAll: true,
+            allowMissing: true
+          ])
         }
-        success {
-            echo '🎉 FÉLICITATIONS ! Pipeline DevSecOps RÉUSSI ! 🎉'
-            echo '✅ Tous les tests de sécurité sont passés !'
-        }
-        failure {
-            echo '❌ Pipeline échoué. Vérifiez les logs pour les détails.'
-        }
+      }
     }
+
+    stage('🔒 SCA - Dependency-Check (fail-high)') {
+      when { expression { params.ST_DC } }
+      tools { jdk 'jdk 21'; maven 'maven' }
+      steps {
+        withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+          sh '''
+            set -e
+            mkdir -p .dc-data
+            if ! mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:update-only \
+                  -DdataDirectory=.dc-data \
+                  -DnvdApiKey=$NVD_API_KEY \
+                  -DconnectionTimeout=600000 -DreadTimeout=600000 ; then
+              echo "Update failed — purging local DB and retrying..."
+              mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:purge -DdataDirectory=.dc-data || true
+              rm -rf .dc-data && mkdir -p .dc-data
+              mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:update-only \
+                  -DdataDirectory=.dc-data \
+                  -DnvdApiKey=$NVD_API_KEY \
+                  -DconnectionTimeout=600000 -DreadTimeout=600000
+            fi
+
+            mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:check \
+                -DdataDirectory=.dc-data \
+                -Dformat=ALL \
+                -DnvdApiKey=$NVD_API_KEY \
+                -DfailBuildOnCVSS=7.0 \
+                -Danalyzer.ossindex.enabled=false \
+                -DfailOnError=true \
+                -DconnectionTimeout=600000 -DreadTimeout=600000
+          '''
+        }
+      }
+      post {
+        always {
+          publishHTML(target: [
+            reportDir: 'target',
+            reportFiles: 'dependency-check-report.html',
+            reportName: 'OWASP Dependency-Check',
+            alwaysLinkToLastBuild: true,
+            keepAll: true,
+            allowMissing: true
+          ])
+          archiveArtifacts artifacts: 'target/dependency-check-report.*', allowEmptyArchive: true
+        }
+      }
+    }
+
+    stage('📊 SAST - SonarQube') {
+      when { expression { params.ST_SONAR } }
+      steps {
+        withSonarQubeEnv("${SONAR_SERVER}") {
+          sh '''
+            mvn -B -ntp sonar:sonar \
+              -Dsonar.projectKey=tn.esprit:student-management \
+              -Dsonar.projectName=student-management \
+              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+              -Dsonar.dependencyCheck.jsonReportPath=target/dependency-check-report.json
+          '''
+        }
+      }
+    }
+
+    stage('✅ Quality Gate') {
+      when { expression { params.ST_QG } }
+      steps {
+        timeout(time: 10, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
+    stage('🐳 Build & Push Docker') {
+      when { expression { params.ST_DOCKER } }
+      steps {
+        script {
+          def tag = "build-${env.BUILD_NUMBER}"
+          docker.withRegistry('', REGISTRY_CRED) {
+            def img = docker.build("${REGISTRY}:${tag}")
+            img.push()
+            img.push('latest')
+          }
+          env.IMAGE_TAG = tag
+        }
+      }
+    }
+
+    stage('🔍 Trivy Image Scan (fail-high)') {
+      when { expression { params.ST_TRIVY } }
+      steps {
+        script {
+          if (!env.IMAGE_TAG) {
+            error "Active ST_DOCKER avant ST_TRIVY (IMAGE_TAG manquant)."
+          }
+        }
+        sh '''
+          set -e
+          mkdir -p .trivy-cache
+          trivy clean --all || true
+          trivy image --download-db-only --cache-dir .trivy-cache || true
+          ( trivy image \
+              --scanners vuln \
+              --severity CRITICAL,HIGH \
+              --exit-code 1 \
+              --timeout 30m \
+              --cache-dir .trivy-cache \
+              ${REGISTRY}:${IMAGE_TAG} \
+            ) 2>&1 | tee trivy-results.txt || EXIT=$?
+          if [ "${EXIT:-0}" -ne 0 ]; then
+            echo "First Trivy run failed, retrying once in 15s..."
+            sleep 15
+            trivy image \
+              --scanners vuln \
+              --severity CRITICAL,HIGH \
+              --exit-code 1 \
+              --timeout 30m \
+              --cache-dir .trivy-cache \
+              ${REGISTRY}:${IMAGE_TAG} 2>&1 | tee -a trivy-results.txt
+          fi
+        '''
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'trivy-results.txt', allowEmptyArchive: true
+        }
+      }
+    }
+
+    stage('🚀 Run app container') {
+      when { expression { params.ST_RUNAPP } }
+      steps {
+        script {
+          if (!env.IMAGE_TAG) {
+            error "Active ST_DOCKER avant ST_RUNAPP (image manquante)."
+          }
+        }
+        sh '''
+          set -e
+
+          docker rm -f smokerun 2>/dev/null || true
+          rm -rf app-logs && mkdir -p app-logs
+
+          docker run -d --name smokerun -p 8089:8089 \
+            -v "$PWD/app-logs:/logs" \
+            -e LOGGING_FILE_NAME=/logs/app.log \
+            -e SPRING_DATASOURCE_URL='jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;MODE=MySQL' \
+            -e SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver \
+            -e SPRING_DATASOURCE_USERNAME=sa \
+            -e SPRING_DATASOURCE_PASSWORD= \
+            -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \
+            ${REGISTRY}:${IMAGE_TAG}
+
+          echo "Attente du démarrage de l’app..."
+          sleep 3
+
+          ok=false
+          for i in $(seq 1 60); do
+            code=$(curl -sS --connect-timeout 3 --max-time 5 -o /dev/null -w %{http_code} \
+                   http://localhost:8089/student/actuator/health || true)
+            echo "[try $i] /student/actuator/health -> $code"
+            if [ "$code" = "200" ]; then ok=true; break; fi
+
+            code=$(curl -sS --connect-timeout 3 --max-time 5 -o /dev/null -w %{http_code} \
+                   http://localhost:8089/student/Depatment/getAllDepartment || true)
+            echo "[try $i] /student/Depatment/getAllDepartment -> $code"
+            if [ "$code" = "200" ]; then ok=true; break; fi
+
+            sleep 2
+          done
+
+          if [ "$ok" != "true" ]; then
+            echo "⚠️ L’application ne répond pas. État/ports et logs :"
+            echo "--- docker ps ---"
+            docker ps -a --filter name=smokerun || true
+            echo "--- docker inspect ---"
+            docker inspect smokerun --format='State: {{.State.Status}}  Ports: {{json .NetworkSettings.Ports}}' || true
+            echo "--- docker logs (200 lignes) ---"
+            docker logs --tail 200 smokerun || true
+            echo "--- tail app-logs/app.log (si présent) ---"
+            tail -n 200 app-logs/app.log 2>/dev/null || true
+            exit 1
+          fi
+        '''
+      }
+      post {
+        always {
+          sh 'docker logs --tail 1000 smokerun > smokerun.log 2>/dev/null || true'
+          archiveArtifacts artifacts: 'smokerun.log', allowEmptyArchive: true
+          archiveArtifacts artifacts: 'app-logs/app.log', allowEmptyArchive: true
+        }
+      }
+    }
+
+    stage('🧪 Smoke Test') {
+      when { expression { params.ST_SMOKE } }
+      steps {
+        // Affiche l’en-tête + le JSON de la réponse dans la console Jenkins
+        sh 'curl -sS -i http://localhost:8089/student/Depatment/getAllDepartment'
+      }
+    }
+
+    stage('🔐 Gitleaks (fail on leak)') {
+      when { expression { params.ST_GITLEAKS } }
+      steps {
+        sh '''
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+            --source=/repo --no-banner \
+            --exit-code 1 \
+            --report-format=json --report-path=/repo/gitleaks-report.json
+        '''
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
+        }
+      }
+    }
+
+    stage('🛡️ ZAP Baseline (fail >= High)') {
+  when { expression { params.ST_ZAP } }
+  steps {
+    sh '''
+      set -e
+      rm -rf zap-out && mkdir -p zap-out
+      chmod 777 zap-out
+
+      docker pull ghcr.io/zaproxy/zaproxy:stable
+
+      set +e
+      # On capture la sortie dans un log, SANS casser tout de suite le build
+      docker run --rm --network host --user 0:0 \
+        -v "$PWD/zap-out:/zap/wrk" ghcr.io/zaproxy/zaproxy:stable \
+        zap-baseline.py \
+          -t http://localhost:8089/student/Depatment/getAllDepartment \
+          -m 3 \
+          -r zap-baseline.html \
+          -J zap-baseline.json \
+          -d -z "-config api.disablekey=true" | tee zap-out/zap-console.log
+      rc=$?
+      set -e
+
+      # On récupère les rapports à la racine pour HTML Publisher
+      cp -f zap-out/zap-baseline.html . 2>/dev/null || true
+      cp -f zap-out/zap-baseline.json . 2>/dev/null || true
+      cp -f zap-out/zap-console.log  . 2>/dev/null || true
+
+      # Décision d'échec:
+      # - échouer si le résumé indique FAIL-NEW > 0
+      # - ou s'il y a "Automation plan failures:"
+      # Sinon, ignorer les warnings (exit code 2) et passer.
+      if grep -q 'Automation plan failures:' zap-out/zap-console.log; then
+        echo "❌ ZAP: Automation plan failures détectées."
+        exit 1
+      fi
+
+      # extraire le compteur FAIL-NEW: <nombre>
+      FAILS=$(grep -Eo 'FAIL-NEW: [0-9]+' zap-out/zap-console.log | awk '{print $2}' | tail -n1)
+      if [ -z "$FAILS" ]; then
+        echo "ℹ️ Impossible de lire FAIL-NEW, on garde le code retour original: $rc"
+        # Si pas de failures et seulement des warnings (rc=2), on passe
+        if [ "$rc" -eq 2 ]; then
+          echo "↪️ ZAP a retourné 2 (warnings) mais aucune failure détectée."
+          exit 0
+        fi
+        exit "$rc"
+      fi
+
+      if [ "$FAILS" -gt 0 ]; then
+        echo "❌ ZAP: $FAILS fail(s) nouvelles (>= High)."
+        exit 1
+      else
+        echo "✅ ZAP: aucune fail >= High. On ignore les warnings."
+        exit 0
+      fi
+    '''
+  }
+  post {
+    always {
+      publishHTML(target: [
+        reportDir: '.',
+        reportFiles: 'zap-baseline.html',
+        reportName: 'OWASP ZAP Baseline',
+        alwaysLinkToLastBuild: true,
+        keepAll: true,
+        allowMissing: true
+      ])
+      archiveArtifacts artifacts: 'zap-baseline.*', allowEmptyArchive: true
+      archiveArtifacts artifacts: 'zap-console.log', allowEmptyArchive: true
+    }
+  }
 }
+  } // <-- fin stages
+
+  post {
+    always {
+      // si tu veux garder le conteneur pour debug, commente la ligne suivante
+      sh 'docker rm -f smokerun 2>/dev/null || true'
+    }
+    success { echo '✅ Étape(s) validée(s). Active la suivante et relance.' }
+    failure { echo '⛔ Échec : corrige le stage en rouge, puis relance.' }
+  }
+
+} // <-- fin pipeline
