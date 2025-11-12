@@ -70,7 +70,7 @@ pipeline {
       }
     }
 
-   stage('🔒 SCA - Dependency-Check (fail-high)') {
+  stage('🔒 SCA - Dependency-Check (fail-high)') {
   when { expression { params.ST_DC } }
   tools { jdk 'jdk 21'; maven 'maven' }
 
@@ -95,21 +95,22 @@ pipeline {
         fi
 
         # 2️⃣ Analyse des dépendances
-     mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:check \
-    -DdataDirectory=.dc-data \
-    -Dformat=HTML,JSON,XML \
-    -DnvdApiKey=$NVD_API_KEY \
-    -DfailBuildOnCVSS=7.0 \
-    -Danalyzer.ossindex.enabled=false \
-    -DfailOnError=true \
-    -DconnectionTimeout=600000 -DreadTimeout=600000
+        mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:check \
+          -DdataDirectory=.dc-data \
+          -Dformat=HTML,JSON,XML \
+          -DoutputDirectory=target \
+          -DoutputFile=dependency-check-report \
+          -DnvdApiKey=$NVD_API_KEY \
+          -DfailBuildOnCVSS=7.0 \
+          -Danalyzer.ossindex.enabled=false \
+          -DfailOnError=true \
+          -DconnectionTimeout=600000 -DreadTimeout=600000
       '''
     }
   }
 
   post {
     always {
-      // ✅ Publie le rapport HTML classique (lisible directement)
       publishHTML(target: [
         reportDir: 'target',
         reportFiles: 'dependency-check-report.html',
@@ -118,16 +119,11 @@ pipeline {
         keepAll: true,
         allowMissing: true
       ])
-
-      // ✅ Archive les fichiers (XML, JSON, HTML)
       archiveArtifacts artifacts: 'target/dependency-check-report.*', allowEmptyArchive: true
-
-      // ✅ Appelle le plugin Jenkins (affichage graphique natif)
       dependencyCheckPublisher pattern: 'target/dependency-check-report.xml'
     }
   }
 }
-
   stage('📊 SAST - SonarQube') {
   when { expression { params.ST_SONAR } }
   steps {
