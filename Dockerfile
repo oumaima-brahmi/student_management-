@@ -1,4 +1,3 @@
-FROM eclipse-temurin:21-jre
 FROM openjdk:8-jre-alpine
 WORKDIR /
 COPY target/*-SNAPSHOT.jar /app.jar
