@@ -398,8 +398,9 @@ pipeline {
 
   post {
     always {
+        echo "🧩 Conteneur conservé pour test manuel (suppression désactivée)"
       // si tu veux garder le conteneur pour debug, commente la ligne suivante
-      sh 'docker rm -f smokerun 2>/dev/null || true'
+      //sh 'docker rm -f smokerun 2>/dev/null || true'
     }
     success { echo '✅ Étape(s) validée(s). Active la suivante et relance.' }
     failure { echo '⛔ Échec : corrige le stage en rouge, puis relance.' }
