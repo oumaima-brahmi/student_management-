@@ -147,7 +147,7 @@
             </plugin>
 
             <!-- OWASP Dependency Check -->
-            <plugin>
+           <plugin>
   <groupId>org.owasp</groupId>
   <artifactId>dependency-check-maven</artifactId>
   <version>12.1.0</version>
@@ -162,9 +162,12 @@
     <formats>
       <format>HTML</format>
       <format>JSON</format>
+      <format>XML</format> <!-- ✅ nécessaire pour Jenkins -->
     </formats>
     <!-- échoue si CVSS >= 7 -->
     <failBuildOnCVSS>7.0</failBuildOnCVSS>
+    <outputDirectory>${project.build.directory}</outputDirectory>
+    <outputFile>dependency-check-report</outputFile>
   </configuration>
 </plugin>
             <!-- Formatage auto -->
