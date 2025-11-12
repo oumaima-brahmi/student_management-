@@ -3,17 +3,17 @@ pipeline {
 
   parameters {
     booleanParam(name: 'ST_CHECKOUT', defaultValue: true,  description: '1) Checkout Git')
-    booleanParam(name: 'ST_BUILD',    defaultValue: false, description: '2) Maven build (skip tests)')
-    booleanParam(name: 'ST_TESTS',    defaultValue: false, description: '3) Tests + JaCoCo')
-    booleanParam(name: 'ST_DC',       defaultValue: false, description: '4) SCA Dependency-Check (fail HIGH/CRIT)')
-    booleanParam(name: 'ST_SONAR',    defaultValue: false, description: '5) SonarQube analysis')
-    booleanParam(name: 'ST_QG',       defaultValue: false, description: '6) Quality Gate (stop si NOK)')
-    booleanParam(name: 'ST_DOCKER',   defaultValue: false, description: '7) Build & Push Docker')
-    booleanParam(name: 'ST_TRIVY',    defaultValue: false, description: '8) Trivy image scan (fail HIGH/CRIT)')
-    booleanParam(name: 'ST_RUNAPP',   defaultValue: false, description: '9) Run app container (pour DAST & smoke)')
-    booleanParam(name: 'ST_SMOKE',    defaultValue: false, description: '10) Smoke test /student')
-    booleanParam(name: 'ST_GITLEAKS', defaultValue: false, description: '11) Gitleaks (fail on leak)')
-    booleanParam(name: 'ST_ZAP',      defaultValue: false, description: '12) ZAP Baseline (fail >= Medium)')
+    booleanParam(name: 'ST_BUILD',    defaultValue: true, description: '2) Maven build (skip tests)')
+    booleanParam(name: 'ST_TESTS',    defaultValue: true, description: '3) Tests + JaCoCo')
+    booleanParam(name: 'ST_DC',       defaultValue: true, description: '4) SCA Dependency-Check (fail HIGH/CRIT)')
+    booleanParam(name: 'ST_SONAR',    defaultValue: true, description: '5) SonarQube analysis')
+    booleanParam(name: 'ST_QG',       defaultValue: true, description: '6) Quality Gate (stop si NOK)')
+    booleanParam(name: 'ST_DOCKER',   defaultValue: true, description: '7) Build & Push Docker')
+    booleanParam(name: 'ST_TRIVY',    defaultValue: true, description: '8) Trivy image scan (fail HIGH/CRIT)')
+    booleanParam(name: 'ST_RUNAPP',   defaultValue: true, description: '9) Run app container (pour DAST & smoke)')
+    booleanParam(name: 'ST_SMOKE',    defaultValue: true, description: '10) Smoke test /student')
+    booleanParam(name: 'ST_GITLEAKS', defaultValue: true, description: '11) Gitleaks (fail on leak)')
+    booleanParam(name: 'ST_ZAP',      defaultValue: true, description: '12) ZAP Baseline (fail >= Medium)')
   }
 
   options { timestamps() }
