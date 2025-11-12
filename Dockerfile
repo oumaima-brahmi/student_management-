@@ -1,4 +1,4 @@
-FROM openjdk:8-jre-alpine
+FROM eclipse-temurin:21-jre
 WORKDIR /
 COPY target/*-SNAPSHOT.jar /app.jar
 EXPOSE 8089
