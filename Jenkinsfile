@@ -180,9 +180,12 @@ pipeline {
       set -e
       mkdir -p .trivy-cache
       
-      echo "📥 Téléchargement du template HTML Trivy..."
-      curl -sSL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o contrib/html.tpl
-      
+     echo "📥 Téléchargement du template HTML Trivy..."
+  mkdir -p contrib
+  curl -fsSL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o contrib/html.tpl || {
+    echo "❌ Échec du téléchargement du template HTML Trivy."
+    exit 1
+  }  
       echo "🧹 Nettoyage du cache Trivy..."
       trivy clean --all || true
 
