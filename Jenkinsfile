@@ -97,7 +97,7 @@ pipeline {
         # 2️⃣ Analyse des dépendances
         mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:check \
             -DdataDirectory=.dc-data \
-            -Dformat=ALL \
+            -Dformat=HTML,JSON,XML \ 
             -DnvdApiKey=$NVD_API_KEY \
             -DfailBuildOnCVSS=7.0 \
             -Danalyzer.ossindex.enabled=false \
