@@ -124,25 +124,20 @@ pipeline {
     }
   }
 }
-  stage('📊 SAST - SonarQube') {
-  when { expression { params.ST_SONAR } }
-  steps {
-    script {
-      if (!fileExists('target/dependency-check-report.json')) {
-        echo "⚠️ Pas de rapport Dependency-Check JSON trouvé, SonarQube lira sans SCA."
+   stage('📊 SAST - SonarQube') {
+      when { expression { params.ST_SONAR } }
+      steps {
+        withSonarQubeEnv("${SONAR_SERVER}") {
+          sh '''
+            mvn -B -ntp sonar:sonar \
+              -Dsonar.projectKey=tn.esprit:student-management \
+              -Dsonar.projectName=student-management \
+              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+              -Dsonar.dependencyCheck.jsonReportPath=target/dependency-check-report.json
+          '''
+        }
       }
     }
-    withSonarQubeEnv("${SONAR_SERVER}") {
-      sh '''
-        mvn -B -ntp sonar:sonar \
-          -Dsonar.projectKey=tn.esprit:student-management \
-          -Dsonar.projectName=student-management \
-          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-          -Dsonar.dependencyCheck.jsonReportPath=target/dependency-check-report.json
-      '''
-    }
-  }
-}
     stage('✅ Quality Gate') {
       when { expression { params.ST_QG } }
       steps {
