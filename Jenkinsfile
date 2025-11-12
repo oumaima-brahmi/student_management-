@@ -96,13 +96,13 @@ pipeline {
 
         # 2️⃣ Analyse des dépendances
         mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:check \
-            -DdataDirectory=.dc-data \
-            -Dformat=HTML,JSON,XML \ 
-            -DnvdApiKey=$NVD_API_KEY \
-            -DfailBuildOnCVSS=7.0 \
-            -Danalyzer.ossindex.enabled=false \
-            -DfailOnError=true \
-            -DconnectionTimeout=600000 -DreadTimeout=600000
+      -DdataDirectory=.dc-data \
+      -Dformat=HTML,JSON,XML \
+      -DnvdApiKey=$NVD_API_KEY \
+      -DfailBuildOnCVSS=7.0 \
+      -Danalyzer.ossindex.enabled=false \
+      -DfailOnError=true \
+      -DconnectionTimeout=600000 -DreadTimeout=600000
       '''
     }
   }
@@ -128,21 +128,25 @@ pipeline {
   }
 }
 
-   stage('📊 SAST - SonarQube') {
-      when { expression { params.ST_SONAR } }
-      steps {
-        withSonarQubeEnv("${SONAR_SERVER}") {
-          sh '''
-            mvn -B -ntp sonar:sonar \
-              -Dsonar.projectKey=tn.esprit:student-management \
-              -Dsonar.projectName=student-management \
-              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-              -Dsonar.dependencyCheck.jsonReportPath=target/dependency-check-report.json
-          '''
-        }
+  stage('📊 SAST - SonarQube') {
+  when { expression { params.ST_SONAR } }
+  steps {
+    script {
+      if (!fileExists('target/dependency-check-report.json')) {
+        echo "⚠️ Pas de rapport Dependency-Check JSON trouvé, SonarQube lira sans SCA."
       }
     }
-
+    withSonarQubeEnv("${SONAR_SERVER}") {
+      sh '''
+        mvn -B -ntp sonar:sonar \
+          -Dsonar.projectKey=tn.esprit:student-management \
+          -Dsonar.projectName=student-management \
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+          -Dsonar.dependencyCheck.jsonReportPath=target/dependency-check-report.json
+      '''
+    }
+  }
+}
     stage('✅ Quality Gate') {
       when { expression { params.ST_QG } }
       steps {
