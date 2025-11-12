@@ -168,46 +168,68 @@ pipeline {
     }
 
     stage('🔍 Trivy Image Scan (fail-high)') {
-      when { expression { params.ST_TRIVY } }
-      steps {
-        script {
-          if (!env.IMAGE_TAG) {
-            error "Active ST_DOCKER avant ST_TRIVY (IMAGE_TAG manquant)."
-          }
-        }
-        sh '''
-          set -e
-          mkdir -p .trivy-cache
-          trivy clean --all || true
-          trivy image --download-db-only --cache-dir .trivy-cache || true
-          ( trivy image \
-              --scanners vuln \
-              --severity CRITICAL,HIGH \
-              --exit-code 1 \
-              --timeout 30m \
-              --cache-dir .trivy-cache \
-              ${REGISTRY}:${IMAGE_TAG} \
-            ) 2>&1 | tee trivy-results.txt || EXIT=$?
-          if [ "${EXIT:-0}" -ne 0 ]; then
-            echo "First Trivy run failed, retrying once in 15s..."
-            sleep 15
-            trivy image \
-              --scanners vuln \
-              --severity CRITICAL,HIGH \
-              --exit-code 1 \
-              --timeout 30m \
-              --cache-dir .trivy-cache \
-              ${REGISTRY}:${IMAGE_TAG} 2>&1 | tee -a trivy-results.txt
-          fi
-        '''
-      }
-      post {
-        always {
-          archiveArtifacts artifacts: 'trivy-results.txt', allowEmptyArchive: true
-        }
+  when { expression { params.ST_TRIVY } }
+  steps {
+    script {
+      if (!env.IMAGE_TAG) {
+        error "Active ST_DOCKER avant ST_TRIVY (IMAGE_TAG manquant)."
       }
     }
 
+    sh '''
+      set -e
+      mkdir -p .trivy-cache
+
+      echo "🧹 Nettoyage du cache Trivy..."
+      trivy clean --all || true
+
+      echo "⬇️ Téléchargement de la base de vulnérabilités..."
+      trivy image --download-db-only --cache-dir .trivy-cache || true
+
+      echo "🔎 Analyse de l'image Docker avec Trivy..."
+      trivy image \
+        --scanners vuln \
+        --severity CRITICAL,HIGH \
+        --exit-code 1 \
+        --timeout 30m \
+        --cache-dir .trivy-cache \
+        --format template \
+        --template "@contrib/html.tpl" \
+        --output trivy-report.html \
+        ${REGISTRY}:${IMAGE_TAG} \
+        2>&1 | tee trivy-results.txt || EXIT=$?
+
+      if [ "${EXIT:-0}" -ne 0 ]; then
+        echo "⚠️ Échec ou vulnérabilités détectées, relance en 15s..."
+        sleep 15
+        trivy image \
+          --scanners vuln \
+          --severity CRITICAL,HIGH \
+          --exit-code 1 \
+          --timeout 30m \
+          --cache-dir .trivy-cache \
+          --format template \
+          --template "@contrib/html.tpl" \
+          --output trivy-report.html \
+          ${REGISTRY}:${IMAGE_TAG} 2>&1 | tee -a trivy-results.txt
+      fi
+    '''
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'trivy-results.txt, trivy-report.html', allowEmptyArchive: true
+      publishHTML(target: [
+        reportDir: '.',
+        reportFiles: 'trivy-report.html',
+        reportName: 'Trivy Vulnerability Report',
+        alwaysLinkToLastBuild: true,
+        keepAll: true,
+        allowMissing: true
+      ])
+    }
+  }
+}
     stage('🚀 Run app container') {
       when { expression { params.ST_RUNAPP } }
       steps {
