@@ -70,54 +70,65 @@ pipeline {
       }
     }
 
-    stage('🔒 SCA - Dependency-Check (fail-high)') {
-      when { expression { params.ST_DC } }
-      tools { jdk 'jdk 21'; maven 'maven' }
-      steps {
-        withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
-          sh '''
-            set -e
-            mkdir -p .dc-data
-            if ! mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:update-only \
-                  -DdataDirectory=.dc-data \
-                  -DnvdApiKey=$NVD_API_KEY \
-                  -DconnectionTimeout=600000 -DreadTimeout=600000 ; then
-              echo "Update failed — purging local DB and retrying..."
-              mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:purge -DdataDirectory=.dc-data || true
-              rm -rf .dc-data && mkdir -p .dc-data
-              mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:update-only \
-                  -DdataDirectory=.dc-data \
-                  -DnvdApiKey=$NVD_API_KEY \
-                  -DconnectionTimeout=600000 -DreadTimeout=600000
-            fi
+   stage('🔒 SCA - Dependency-Check (fail-high)') {
+  when { expression { params.ST_DC } }
+  tools { jdk 'jdk 21'; maven 'maven' }
 
-            mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:check \
-                -DdataDirectory=.dc-data \
-                -Dformat=ALL \
-                -DnvdApiKey=$NVD_API_KEY \
-                -DfailBuildOnCVSS=7.0 \
-                -Danalyzer.ossindex.enabled=false \
-                -DfailOnError=true \
-                -DconnectionTimeout=600000 -DreadTimeout=600000
-          '''
-        }
-      }
-      post {
-        always {
-          publishHTML(target: [
-            reportDir: 'target',
-            reportFiles: 'dependency-check-report.html',
-            reportName: 'OWASP Dependency-Check',
-            alwaysLinkToLastBuild: true,
-            keepAll: true,
-            allowMissing: true
-          ])
-          archiveArtifacts artifacts: 'target/dependency-check-report.*', allowEmptyArchive: true
-        }
-      }
+  steps {
+    withCredentials([string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')]) {
+      sh '''
+        set -e
+        mkdir -p .dc-data
+
+        # 1️⃣ Mise à jour de la base NVD
+        if ! mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:update-only \
+              -DdataDirectory=.dc-data \
+              -DnvdApiKey=$NVD_API_KEY \
+              -DconnectionTimeout=600000 -DreadTimeout=600000 ; then
+          echo "Update failed — purging local DB and retrying..."
+          mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:purge -DdataDirectory=.dc-data || true
+          rm -rf .dc-data && mkdir -p .dc-data
+          mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:update-only \
+              -DdataDirectory=.dc-data \
+              -DnvdApiKey=$NVD_API_KEY \
+              -DconnectionTimeout=600000 -DreadTimeout=600000
+        fi
+
+        # 2️⃣ Analyse des dépendances
+        mvn -B -ntp org.owasp:dependency-check-maven:12.1.0:check \
+            -DdataDirectory=.dc-data \
+            -Dformat=ALL \
+            -DnvdApiKey=$NVD_API_KEY \
+            -DfailBuildOnCVSS=7.0 \
+            -Danalyzer.ossindex.enabled=false \
+            -DfailOnError=true \
+            -DconnectionTimeout=600000 -DreadTimeout=600000
+      '''
     }
+  }
 
-    stage('📊 SAST - SonarQube') {
+  post {
+    always {
+      // ✅ Publie le rapport HTML classique (lisible directement)
+      publishHTML(target: [
+        reportDir: 'target',
+        reportFiles: 'dependency-check-report.html',
+        reportName: 'OWASP Dependency-Check (HTML)',
+        alwaysLinkToLastBuild: true,
+        keepAll: true,
+        allowMissing: true
+      ])
+
+      // ✅ Archive les fichiers (XML, JSON, HTML)
+      archiveArtifacts artifacts: 'target/dependency-check-report.*', allowEmptyArchive: true
+
+      // ✅ Appelle le plugin Jenkins (affichage graphique natif)
+      dependencyCheckPublisher pattern: 'target/dependency-check-report.xml'
+    }
+  }
+}
+
+   stage('📊 SAST - SonarQube') {
       when { expression { params.ST_SONAR } }
       steps {
         withSonarQubeEnv("${SONAR_SERVER}") {
