@@ -312,7 +312,7 @@ pipeline {
         --source=/repo --no-banner \
         --exit-code 1 \
         --no-git \
-        --gitleaks-ignore-path /repo/.gitleaksignore \
+        --config /repo/.gitleaks.toml \
         --report-format=json --report-path=/repo/gitleaks-report.json
     '''
   }
@@ -322,7 +322,6 @@ pipeline {
     }
   }
 }
-
     stage('🛡️ ZAP Baseline (fail >= High)') {
   when { expression { params.ST_ZAP } }
   steps {
