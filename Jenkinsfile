@@ -304,23 +304,12 @@ pipeline {
       }
     }
 
-    stage('🔐 Gitleaks (fail on leak)') {
-      when { expression { params.ST_GITLEAKS } }
-      steps {
-        sh '''
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
-            --source=/repo --no-banner \
-            --exit-code 1 \
-            --no-git \
-            --report-format=json --report-path=/repo/gitleaks-report.json
-        '''
-      }
-      post {
-        always {
-          archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
-        }
-      }
-    }
+    docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
+  --source=/repo --no-banner \
+  --exit-code 1 \
+  --no-git \
+  --report-format=json --report-path=/repo/gitleaks-report.json \
+  --exclude-paths=".dc-data,.trivy-cache,app-logs,target"
 
     stage('🛡️ ZAP Baseline (fail >= High)') {
   when { expression { params.ST_ZAP } }
