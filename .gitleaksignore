@@ -1,5 +1,0 @@
-# Ignorer les caches générés par les outils CI
-.dc-data/
-.trivy-cache/
-app-logs/
-target/

@@ -1,0 +1,16 @@
+title = "Gitleaks Configuration"
+
+# On commence par charger la config par défaut
+[[extend]]
+repo = "https://github.com/gitleaks/gitleaks"
+path = "config/gitleaks.toml"
+
+# Exclusions personnalisées
+[[allowlist]]
+description = "Ignore CI/CD cache directories"
+paths = [
+  ".dc-data",
+  ".trivy-cache",
+  "target",
+  "app-logs"
+]
