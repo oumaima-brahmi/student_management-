@@ -304,7 +304,7 @@ pipeline {
       }
     }
 
-    stage('🔐 Gitleaks (fail on leak)') {
+   stage('🔐 Gitleaks (fail on leak)') {
   when { expression { params.ST_GITLEAKS } }
   steps {
     sh '''
@@ -312,8 +312,8 @@ pipeline {
         --source=/repo --no-banner \
         --exit-code 1 \
         --no-git \
-        --report-format=json --report-path=/repo/gitleaks-report.json \
-        --exclude-paths ".dc-data,.trivy-cache,app-logs,target"
+        --gitleaks-ignore-path /repo/.gitleaksignore \
+        --report-format=json --report-path=/repo/gitleaks-report.json
     '''
   }
   post {
