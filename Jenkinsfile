@@ -311,6 +311,7 @@ pipeline {
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect \
             --source=/repo --no-banner \
             --exit-code 1 \
+            --no-git \
             --report-format=json --report-path=/repo/gitleaks-report.json
         '''
       }
